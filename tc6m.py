@@ -505,7 +505,7 @@ def build_patient_dataframe(data: PatientData) -> pd.DataFrame:
                 "Observação da triagem",
             ],
             "Valor": [
-                data.nome,
+                format_patient_name(data.nome),
                 data.prontuario or "-",
                 data.data_avaliacao.strftime("%d/%m/%Y") if data.data_avaliacao else "-",
                 data.avaliador or "-",
@@ -878,6 +878,27 @@ def build_report_payload(data: PatientData, result: TestResult, timeseries_df: p
     }
 
 
+def format_patient_name(patient_name: str) -> str:
+    """Remove prefixos de ambiente de teste quando aparecem no nome final."""
+
+    clean_name = (patient_name or "").strip()
+    test_prefixes = [
+        "Paciente Teste -",
+        "Paciente Teste –",
+        "Paciente Teste:",
+        "Paciente teste -",
+        "Paciente teste –",
+        "Paciente teste:",
+    ]
+
+    for prefix in test_prefixes:
+        if clean_name.startswith(prefix):
+            clean_name = clean_name[len(prefix):].strip()
+            break
+
+    return clean_name or "Paciente sem identificação"
+
+
 def _figure_to_png_bytes(fig) -> BytesIO:
     """Converte um gráfico Matplotlib em PNG para inserir no PDF."""
 
@@ -1072,12 +1093,18 @@ def build_pdf_bytes(data: PatientData, result: TestResult, timeseries_df: pd.Dat
     margin = 38
     usable = width - 2 * margin
     now = datetime.now().strftime("%d/%m/%Y %H:%M")
+    patient_name = format_patient_name(data.nome)
 
     y = height - margin
     pdf.setFillColor(_hex(REPORT_COLORS["text"]))
     pdf.setFont("Helvetica", 15)
-    pdf.drawString(margin, y, data.nome or "Paciente sem identificação")
+    pdf.drawString(margin, y, "Teste de Caminhada de 6 Minutos (TC6M)")
     _draw_badge(pdf, result.qualificador_funcional, width - margin - 130, y + 2, "warning")
+
+    y -= 18
+    pdf.setFont("Helvetica", 10)
+    pdf.setFillColor(_hex(REPORT_COLORS["text"]))
+    pdf.drawString(margin, y, f"Nome do paciente: {patient_name}")
 
     y -= 18
     pdf.setFont("Helvetica", 8)
@@ -1260,7 +1287,8 @@ def build_pdf_bytes(data: PatientData, result: TestResult, timeseries_df: pd.Dat
 def build_safe_filename(patient_name: str, extension: str) -> str:
     """Cria nome de arquivo seguro com nome do teste, paciente e data."""
 
-    clean_name = "".join(char if char.isalnum() else "_" for char in patient_name.strip()).strip("_")
+    clean_patient_name = format_patient_name(patient_name)
+    clean_name = "".join(char if char.isalnum() else "_" for char in clean_patient_name.strip()).strip("_")
     if not clean_name:
         clean_name = "paciente"
 
