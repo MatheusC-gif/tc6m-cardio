@@ -1,4 +1,5 @@
 from datetime import date
+from html import escape
 
 import pandas as pd
 import streamlit as st
@@ -14,6 +15,7 @@ from tc6m import (
     build_oscillation_figure,
     build_patient_dataframe,
     build_pdf_bytes,
+    build_report_payload,
     build_safe_filename,
     build_summary_dataframe,
     build_curve_findings,
@@ -197,14 +199,14 @@ st.markdown(
         }
 
         .interpretation-box {
-            background: #F7FCF9;
+            background: #FFFFFF;
             border: 1px solid #CFE2DA;
             border-left: 5px solid var(--primary-color);
             border-radius: var(--border-radius);
-            padding: 16px 18px;
-            color: var(--primary-color) !important;
-            font-weight: 700;
-            line-height: 1.55;
+            padding: 18px 20px;
+            color: var(--text-dark) !important;
+            font-weight: 650;
+            line-height: 1.7;
             margin: 14px 0;
         }
 
@@ -285,10 +287,10 @@ st.markdown(
         .result-card {
             background: var(--card-bg);
             border-radius: var(--border-radius);
-            padding: 18px 18px;
+            padding: 15px 16px;
             box-shadow: var(--shadow);
             border-left: 5px solid var(--primary-color);
-            min-height: 112px;
+            min-height: 96px;
         }
 
         .result-card .label {
@@ -302,7 +304,7 @@ st.markdown(
 
         .result-card .value {
             color: var(--primary-color) !important;
-            font-size: 1.28rem;
+            font-size: 1.06rem;
             font-weight: 800;
             line-height: 1.2;
             white-space: normal;
@@ -431,6 +433,215 @@ st.markdown(
 
         .status-danger [data-testid="stMetricValue"] {
             color: var(--danger-color) !important;
+        }
+
+        .report-preview {
+            background: #FFFFFF;
+            border: 1px solid #D8D8D2;
+            border-radius: 16px;
+            padding: 22px;
+            margin: 8px 0 22px;
+        }
+
+        .report-header-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            border-bottom: 1px solid #E2E2DC;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+        }
+
+        .report-title {
+            color: #1A1A1A !important;
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .report-meta {
+            color: #6B6B67 !important;
+            font-size: 0.86rem;
+        }
+
+        .report-badge, .report-badge-ok, .report-badge-warning, .report-badge-danger {
+            display: inline-block;
+            border-radius: 999px;
+            padding: 4px 11px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .report-badge-warning {
+            background: #FAEEDA;
+            color: #854F0B !important;
+        }
+
+        .report-badge-ok {
+            background: #EAF3DE;
+            color: #3B6D11 !important;
+        }
+
+        .report-badge-danger {
+            background: #FCEBEB;
+            color: #A32D2D !important;
+        }
+
+        .result-highlight {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: center;
+            background: #F5F5F3;
+            border-radius: 14px;
+            padding: 20px 22px;
+            margin-bottom: 18px;
+        }
+
+        .distance-main {
+            min-width: 180px;
+            color: #1A1A1A !important;
+            font-size: 2.7rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .distance-label, .bar-caption, .metric-mini-label, .kv-key, .clinical-summary-title {
+            color: #6B6B67 !important;
+        }
+
+        .bar-area {
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .bar-labels {
+            display: flex;
+            justify-content: space-between;
+            color: #9E9E9A !important;
+            font-size: 0.78rem;
+            margin-bottom: 5px;
+        }
+
+        .bar-track {
+            height: 12px;
+            background: #FFFFFF;
+            border: 1px solid #D8D8D2;
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: #BA7517;
+            border-radius: 999px;
+        }
+
+        .percent-main {
+            color: #BA7517 !important;
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin-top: 8px;
+        }
+
+        .report-two-col {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .report-card {
+            border: 1px solid #D8D8D2;
+            border-radius: 14px;
+            padding: 16px 18px;
+            background: #FFFFFF;
+        }
+
+        .report-card-title {
+            color: #1A1A1A !important;
+            font-weight: 800;
+            font-size: 0.96rem;
+            margin-bottom: 10px;
+        }
+
+        .kv-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 7px 0;
+            border-bottom: 1px solid #ECECE8;
+            font-size: 0.9rem;
+        }
+
+        .kv-row:last-child {
+            border-bottom: none;
+        }
+
+        .kv-val {
+            color: #1A1A1A !important;
+            font-weight: 800;
+            text-align: right;
+        }
+
+        .risk-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            margin: 8px 0 10px;
+        }
+
+        .risk-segment {
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        .metrics-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .metric-mini {
+            background: #F5F5F3;
+            border-radius: 12px;
+            padding: 13px 15px;
+        }
+
+        .metric-mini-value {
+            color: #1A1A1A !important;
+            font-size: 1.45rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .metric-mini-unit {
+            color: #6B6B67 !important;
+            font-size: 0.82rem;
+        }
+
+        .clinical-summary-box {
+            background: #F5F5F3;
+            border-radius: 14px;
+            padding: 16px 18px;
+            color: #1A1A1A !important;
+            line-height: 1.65;
+            font-weight: 650;
+        }
+
+        .factor-text {
+            color: #1A1A1A !important;
+            line-height: 1.55;
+        }
+
+        @media (max-width: 760px) {
+            .report-two-col {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
     """,
@@ -585,6 +796,329 @@ def card_resultado(label: str, valor: str, status: str = "") -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+def numero_br(valor: float, casas: int = 2) -> str:
+    """Formata número com vírgula para a prévia clínica."""
+
+    return f"{float(valor):.{casas}f}".replace(".", ",")
+
+
+def badge_html(texto: str, tipo: str = "warning") -> str:
+    """Renderiza badge compacto do relatório."""
+
+    return f'<span class="report-badge-{tipo}">{escape(texto)}</span>'
+
+
+def renderizar_previa_relatorio(paciente: PatientData, resultado, serie: pd.DataFrame) -> None:
+    """Mostra a prévia final em layout visual parecido com os exemplos enviados."""
+
+    payload = build_report_payload(paciente, resultado, serie)
+    risco = payload["risk"]
+    interrupcao = "Sim" if paciente.interrompeu else "Não"
+    interrupcao_classe = "danger" if paciente.interrompeu else "ok"
+    porcentagem_barra = min(max(resultado.percentual_atingido, 0), 100)
+    risco_posicao = {"4": 12.5, "3": 37.5, "2": 62.5, "1": 87.5}.get(risco["index"], 87.5)
+    metricas_html = "".join(
+        f"""
+        <div class="tc6m-mini-card">
+            <div class="tc6m-mini-label">{escape(metrica["label"])}</div>
+            <div class="tc6m-mini-value">{escape(metrica["value"])}</div>
+            <div class="tc6m-mini-unit">{escape(metrica["unit"])}</div>
+        </div>
+        """
+        for metrica in payload["metrics"]
+    )
+    pontos_html = "".join(
+        f"""
+        <div class="tc6m-kv">
+            <span>{escape(ponto["label"])}</span>
+            <span class="tc6m-chip tc6m-chip-{escape(ponto["type"])}">{escape(ponto["badge"])}</span>
+        </div>
+        """
+        for ponto in payload["attention_points"]
+    )
+    html = f"""
+    <style>
+        .tc6m-visual {{
+            --bg: #10241F;
+            --card: #18352D;
+            --card-soft: #204338;
+            --text: #F1F4EF;
+            --muted: #A9B0A8;
+            --line: rgba(255,255,255,.09);
+            --green: #639922;
+            --amber: #BA7517;
+            --red: #E24B4A;
+            --red-dark: #A32D2D;
+            --blue: #185FA5;
+            border-radius: 18px;
+            background: var(--bg);
+            padding: 22px;
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }}
+        .tc6m-section {{
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            margin: 2px 0 10px;
+        }}
+        .tc6m-card {{
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 18px 20px;
+            margin-bottom: 16px;
+        }}
+        .tc6m-distance {{
+            font-size: 44px;
+            font-weight: 800;
+            line-height: 1;
+            color: var(--text);
+        }}
+        .tc6m-sub {{
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 5px;
+        }}
+        .tc6m-bar-labels {{
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 12px;
+            margin: 20px 0 5px;
+        }}
+        .tc6m-track {{
+            height: 12px;
+            border-radius: 999px;
+            background: #2E554A;
+            overflow: hidden;
+            position: relative;
+        }}
+        .tc6m-fill {{
+            height: 100%;
+            width: {porcentagem_barra:.1f}%;
+            background: var(--amber);
+            border-radius: 999px;
+        }}
+        .tc6m-percent {{
+            color: var(--amber);
+            font-size: 18px;
+            font-weight: 800;
+            margin-top: 10px;
+        }}
+        .tc6m-two {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }}
+        .tc6m-title {{
+            color: var(--text);
+            font-size: 15px;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }}
+        .tc6m-dot {{
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: 1px;
+        }}
+        .tc6m-risk-scale {{
+            position: relative;
+            margin: 12px 0 16px;
+        }}
+        .tc6m-risk-labels {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            color: var(--muted);
+            font-size: 11px;
+            margin-bottom: 5px;
+        }}
+        .tc6m-risk-bars {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+        }}
+        .tc6m-risk-bars div {{
+            height: 7px;
+            border-radius: 999px;
+        }}
+        .tc6m-risk-pointer {{
+            position: absolute;
+            left: {risco_posicao:.1f}%;
+            top: 28px;
+            width: 11px;
+            height: 11px;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            background: {risco["color"]};
+            box-shadow: 0 0 0 3px rgba(255,255,255,.12);
+        }}
+        .tc6m-kv {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            color: var(--muted);
+            border-bottom: 1px solid var(--line);
+            padding: 8px 0;
+            font-size: 13px;
+        }}
+        .tc6m-kv:last-child {{
+            border-bottom: none;
+        }}
+        .tc6m-val {{
+            color: var(--text);
+            font-weight: 800;
+            text-align: right;
+        }}
+        .tc6m-note {{
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+            margin-top: 9px;
+        }}
+        .tc6m-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }}
+        .tc6m-mini-card {{
+            background: #142E27;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 13px 14px;
+            min-height: 92px;
+        }}
+        .tc6m-mini-label {{
+            color: var(--muted);
+            font-size: 11px;
+            margin-bottom: 7px;
+        }}
+        .tc6m-mini-value {{
+            color: var(--text);
+            font-size: 24px;
+            line-height: 1;
+            font-weight: 800;
+        }}
+        .tc6m-mini-unit {{
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 6px;
+        }}
+        .tc6m-chip {{
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }}
+        .tc6m-chip-ok {{
+            background: #EAF3DE;
+            color: #3B6D11;
+        }}
+        .tc6m-chip-warning {{
+            background: #FAEEDA;
+            color: #854F0B;
+        }}
+        .tc6m-chip-danger {{
+            background: #FCEBEB;
+            color: #A32D2D;
+        }}
+        .tc6m-summary {{
+            background: var(--card-soft);
+            color: var(--text);
+            line-height: 1.65;
+            font-size: 14px;
+        }}
+        @media (max-width: 760px) {{
+            .tc6m-two {{
+                grid-template-columns: 1fr;
+            }}
+            .tc6m-distance {{
+                font-size: 38px;
+            }}
+        }}
+    </style>
+    <div class="tc6m-visual">
+        <div class="tc6m-section">Resultado principal</div>
+        <div class="tc6m-card">
+            <div class="tc6m-distance">{paciente.distancia:.0f} m</div>
+            <div class="tc6m-sub">Distância percorrida no TC6M</div>
+            <div class="tc6m-bar-labels">
+                <span>0 m</span>
+                <span>Predito: {numero_br(resultado.dpp_principal, 0)} m ({escape(resultado.formula_principal.split(" - ")[0])})</span>
+            </div>
+            <div class="tc6m-track"><div class="tc6m-fill"></div></div>
+            <div class="tc6m-bar-labels" style="margin-top:6px;">
+                <span>LIN: {escape(payload["lin_label"])}</span>
+                <span>DPP: {numero_br(resultado.dpp_principal, 0)} m</span>
+            </div>
+            <div class="tc6m-percent">{numero_br(resultado.percentual_atingido)}% <span class="tc6m-sub">do previsto</span></div>
+        </div>
+
+        <div class="tc6m-two">
+            <div class="tc6m-card">
+                <div class="tc6m-title"><span class="tc6m-dot" style="background:var(--red);"></span>Classificação de risco</div>
+                <div class="tc6m-risk-scale">
+                    <div class="tc6m-risk-labels"><span>Baixo</span><span>Moderado</span><span>Alto</span><span>Muito alto</span></div>
+                    <div class="tc6m-risk-bars">
+                        <div style="background:var(--green);"></div>
+                        <div style="background:var(--amber);"></div>
+                        <div style="background:var(--red);"></div>
+                        <div style="background:var(--red-dark);"></div>
+                    </div>
+                    <div class="tc6m-risk-pointer"></div>
+                </div>
+                <div class="tc6m-kv"><span>Posição atual</span><span class="tc6m-val">{escape(risco["detail"])}</span></div>
+                <div class="tc6m-kv"><span>Qualificador</span><span class="tc6m-val">{escape(resultado.qualificador_funcional)}</span></div>
+                <div class="tc6m-kv"><span>Interrupção</span><span class="tc6m-chip tc6m-chip-{interrupcao_classe}">{interrupcao}</span></div>
+            </div>
+
+            <div class="tc6m-card">
+                <div class="tc6m-title"><span class="tc6m-dot" style="background:var(--amber);"></span>Predições comparativas</div>
+                <div class="tc6m-kv"><span>DPP principal</span><span class="tc6m-val">{numero_br(resultado.dpp_principal)} m</span></div>
+                <div class="tc6m-kv"><span>LIN principal</span><span class="tc6m-val">{escape(payload["lin_label"])}</span></div>
+                <div class="tc6m-kv"><span>Iwama et al.</span><span class="tc6m-val">{numero_br(resultado.dpp_iwama)} m</span></div>
+                <div class="tc6m-kv"><span>Ben Saad et al.</span><span class="tc6m-val">{numero_br(resultado.dpp_ben_saad)} m</span></div>
+                <div class="tc6m-note">{escape(payload["prediction_note"])}</div>
+            </div>
+        </div>
+
+        <div class="tc6m-section">Monitoramento hemodinâmico</div>
+        <div class="tc6m-grid">{metricas_html}</div>
+
+        <div class="tc6m-section">Interpretação clínica</div>
+        <div class="tc6m-two">
+            <div class="tc6m-card">
+                <div class="tc6m-title"><span class="tc6m-dot" style="background:var(--blue);"></span>Fator limitante provável</div>
+                <div class="tc6m-distance" style="font-size:28px;">{escape(resultado.fator_limitante)}</div>
+                <div class="tc6m-note">{escape(payload["factor_description"])}</div>
+            </div>
+            <div class="tc6m-card">
+                <div class="tc6m-title"><span class="tc6m-dot" style="background:var(--green);"></span>Pontos de atenção</div>
+                {pontos_html}
+            </div>
+        </div>
+
+        <div class="tc6m-card tc6m-summary">
+            {escape(payload["clinical_summary"])}
+        </div>
+    </div>
+    """
+
+    renderizador_html = getattr(st, "html", None)
+    if renderizador_html:
+        renderizador_html(html)
+    else:
+        st.markdown(html, unsafe_allow_html=True)
 
 
 def iniciar_estado() -> None:
@@ -1108,17 +1642,7 @@ if st.session_state.resultado_tc6m and st.session_state.paciente_tc6m is not Non
     st.markdown('<div class="clinical-card">', unsafe_allow_html=True)
     st.subheader("Resumo final do TC6M")
 
-    cards = st.columns(5)
-    with cards[0]:
-        card_resultado("Distância percorrida", f"{paciente.distancia:.2f} m")
-    with cards[1]:
-        card_resultado("DPP escolhida", f"{resultado.dpp_principal:.2f} m")
-    with cards[2]:
-        card_resultado("Desempenho previsto", f"{resultado.percentual_atingido:.2f}%", classe_desempenho(resultado.percentual_atingido))
-    with cards[3]:
-        card_resultado("Qualificador funcional", resultado.qualificador_funcional, classe_desempenho(resultado.percentual_atingido))
-    with cards[4]:
-        card_resultado("Classificação", resultado.classificacao_risco)
+    renderizar_previa_relatorio(paciente, resultado, serie)
 
     aba1, aba2, aba3, aba4, aba5 = st.tabs(
         ["Interpretação", "Resultados completos", "Sinais vitais", "Gráficos", "Exportar"]
@@ -1132,8 +1656,9 @@ if st.session_state.resultado_tc6m and st.session_state.paciente_tc6m is not Non
             card_resultado("Classificação", resultado.classificacao_risco)
         with resumo_interpretacao[2]:
             card_resultado("Risco", resultado.risco, classe_desempenho(resultado.percentual_atingido))
+        payload_interpretacao = build_report_payload(paciente, resultado, serie)
         st.markdown(
-            f'<div class="interpretation-box">{resultado.interpretacao}</div>',
+            f'<div class="interpretation-box">{escape(payload_interpretacao["clinical_summary"])}</div>',
             unsafe_allow_html=True,
         )
         st.dataframe(estilizar_tabela(build_patient_dataframe(paciente)), use_container_width=True)
