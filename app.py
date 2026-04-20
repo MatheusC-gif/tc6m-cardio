@@ -1701,3 +1701,95 @@ if gerar:
             data_avaliacao=st.session_state.data_avaliacao,
             avaliador=st.session_state.avaliador,
             diagnostico=st.session_state.diagnostico,
+            sexo=sexo,
+            idade=int(st.session_state.idade),
+            peso=float(st.session_state.peso),
+            altura_cm=float(st.session_state.altura_cm),
+            distancia=float(st.session_state.distancia),
+            formula_principal=st.session_state.formula_principal,
+            interrompeu=st.session_state.interrompeu_label == "Sim",
+            motivo_interrupcao=st.session_state.motivo_interrupcao,
+            distancia_interrupcao=float(st.session_state.distancia_interrupcao),
+            contraindicacao_absoluta=bool(st.session_state.contra_abs),
+            contraindicacao_relativa=bool(st.session_state.contra_rel),
+            observacao_triagem=st.session_state.observacao_triagem,
+        )
+
+        resultado = calculate_tc6m_professional(paciente, serie_completa)
+        st.session_state.paciente_tc6m = paciente
+        st.session_state.resultado_tc6m = resultado
+        st.session_state.serie_tc6m = serie_completa
+        st.success("Resumo final gerado com sucesso.")
+    except ValueError as erro:
+        st.error(str(erro))
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+
+if st.session_state.resultado_tc6m and st.session_state.paciente_tc6m is not None:
+    paciente = st.session_state.paciente_tc6m
+    resultado = st.session_state.resultado_tc6m
+    serie = st.session_state.serie_tc6m
+
+    st.markdown('<div class="clinical-card">', unsafe_allow_html=True)
+    st.subheader("Resumo final do TC6M")
+
+    renderizar_previa_relatorio(paciente, resultado, serie)
+
+    aba1, aba2, aba3, aba4, aba5 = st.tabs(
+        ["Interpretação", "Resultados completos", "Sinais vitais", "Gráficos", "Exportar"]
+    )
+
+    with aba1:
+        resumo_interpretacao = st.columns(3)
+        with resumo_interpretacao[0]:
+            card_resultado("Qualificador funcional", resultado.qualificador_funcional, classe_desempenho(resultado.percentual_atingido))
+        with resumo_interpretacao[1]:
+            card_resultado("Classificação", resultado.classificacao_risco)
+        with resumo_interpretacao[2]:
+            card_resultado("Risco", resultado.risco, classe_desempenho(resultado.percentual_atingido))
+        payload_interpretacao = build_report_payload(paciente, resultado, serie)
+        st.markdown(
+            f'<div class="interpretation-box">{escape(payload_interpretacao["clinical_summary"])}</div>',
+            unsafe_allow_html=True,
+        )
+        st.dataframe(estilizar_tabela(build_patient_dataframe(paciente)), use_container_width=True)
+
+    with aba2:
+        st.dataframe(estilizar_tabela(build_summary_dataframe(paciente, resultado)), use_container_width=True)
+
+    with aba3:
+        st.dataframe(estilizar_tabela(serie), use_container_width=True)
+
+    with aba4:
+        with st.expander("Abrir achados dos gráficos", expanded=False):
+            st.markdown(
+                f'<div class="findings-box"><ul>{montar_lista_html(build_curve_findings(serie))}</ul></div>',
+                unsafe_allow_html=True,
+            )
+        st.pyplot(build_oscillation_figure(serie), use_container_width=True)
+        st.pyplot(build_effort_figure(serie), use_container_width=True)
+
+    with aba5:
+        excel_bytes = build_excel_bytes(paciente, resultado, serie)
+        pdf_bytes = build_pdf_bytes(paciente, resultado, serie)
+
+        d1, d2 = st.columns(2)
+        with d1:
+            st.download_button(
+                "Baixar Excel estruturado",
+                data=excel_bytes,
+                file_name=build_safe_filename(paciente.nome, "xlsx"),
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+        with d2:
+            st.download_button(
+                "Baixar PDF clínico",
+                data=pdf_bytes,
+                file_name=build_safe_filename(paciente.nome, "pdf"),
+                mime="application/pdf",
+                use_container_width=True,
+            )
+
+    st.markdown("</div>", unsafe_allow_html=True)
