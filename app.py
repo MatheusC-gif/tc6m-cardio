@@ -37,7 +37,7 @@ from tc6m import (
 
 
 st.set_page_config(
-    page_title="Protocolo do TC6M",
+    page_title="TC6M Protocolo Integrado",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -234,6 +234,7 @@ ASSET_ICON_DIR = Path(__file__).resolve().parent / "assets" / "icons"
 ICON_MAP = {
     "achados_automaticos": ASSET_ICON_DIR / "achados_automaticos.png",
     "caminhada_tc6m": ASSET_ICON_DIR / "caminhada_tc6m.png",
+    "tc6m_header": ASSET_ICON_DIR / "tc6m_header.png",
     "classificacao_risco": ASSET_ICON_DIR / "classificacao_risco.png",
     "distancia_percorrida": ASSET_ICON_DIR / "distancia_percorrida.png",
     "duplo_produto_recuperacao": ASSET_ICON_DIR / "duplo_produto_recuperacao.png",
@@ -253,11 +254,25 @@ def load_asset_icon(icon_key: str, fallback: str) -> str:
     """Carrega PNG oficial do sistema para uso inline no Streamlit."""
 
     icon_path = ICON_MAP.get(icon_key)
+    if icon_key == "tc6m_header" and icon_path and not icon_path.exists():
+        icon_path = ASSET_ICON_DIR / "tc6m_header.png.png"
     if icon_path and icon_path.exists():
         encoded = base64.b64encode(icon_path.read_bytes()).decode("ascii")
         alt = escape(icon_key.replace("_", " "))
         return f'<img class="official-icon" src="data:image/png;base64,{encoded}" alt="{alt}">'
     return fallback
+
+
+def load_asset_image_src(icon_key: str) -> str:
+    """Retorna data URI de PNG oficial para imagens maiores do layout."""
+
+    icon_path = ICON_MAP.get(icon_key)
+    if icon_key == "tc6m_header" and icon_path and not icon_path.exists():
+        icon_path = ASSET_ICON_DIR / "tc6m_header.png.png"
+    if not icon_path or not icon_path.exists():
+        return ""
+    encoded = base64.b64encode(icon_path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
 
 
 ICON_USER = load_asset_icon("caminhada_tc6m", ICON_USER)
@@ -726,10 +741,17 @@ def inject_css() -> None:
                 padding: 2rem 2rem 3rem;
             }
 
-            [data-testid="stToolbar"],
             [data-testid="stDecoration"],
             [data-testid="stStatusWidget"] {
                 display: none !important;
+            }
+
+            [data-testid="stToolbar"] {
+                background: transparent !important;
+                display: flex !important;
+                pointer-events: auto !important;
+                visibility: visible !important;
+                z-index: 2147483646 !important;
             }
 
             header[data-testid="stHeader"] {
@@ -738,33 +760,71 @@ def inject_css() -> None:
                 height: 3rem !important;
             }
 
-            [data-testid="stSidebarCollapsedControl"] {
+            [data-testid="stSidebarCollapsedControl"],
+            [data-testid="collapsedControl"] {
                 align-items: center !important;
                 background: #064C3B !important;
                 border: 1px solid rgba(255,255,255,.35) !important;
                 border-radius: 999px !important;
                 box-shadow: 0 10px 24px rgba(2,56,45,.22) !important;
                 display: flex !important;
-                height: 38px !important;
+                height: 42px !important;
                 justify-content: center !important;
                 left: 16px !important;
+                min-height: 42px !important;
+                min-width: 42px !important;
                 opacity: 1 !important;
                 position: fixed !important;
                 top: 14px !important;
                 visibility: visible !important;
-                width: 38px !important;
-                z-index: 999999 !important;
+                width: 42px !important;
+                z-index: 2147483647 !important;
             }
 
-            [data-testid="stSidebarCollapsedControl"] button {
+            [data-testid="stSidebarCollapsedControl"] button,
+            [data-testid="collapsedControl"] button {
                 background: transparent !important;
                 border: 0 !important;
                 color: #FFFFFF !important;
+                cursor: pointer !important;
+                height: 42px !important;
                 min-height: 0 !important;
                 padding: 0 !important;
+                width: 42px !important;
             }
 
-            [data-testid="stSidebarCollapsedControl"] svg {
+            [data-testid="stSidebarCollapsedControl"] svg,
+            [data-testid="collapsedControl"] svg {
+                color: #FFFFFF !important;
+                fill: none !important;
+                stroke: #FFFFFF !important;
+                stroke-width: 2.8 !important;
+            }
+
+            button[data-testid="stExpandSidebarButton"] {
+                align-items: center !important;
+                background: #064C3B !important;
+                border: 1px solid rgba(255,255,255,.35) !important;
+                border-radius: 999px !important;
+                box-shadow: 0 10px 24px rgba(2,56,45,.22) !important;
+                color: #FFFFFF !important;
+                cursor: pointer !important;
+                display: flex !important;
+                height: 42px !important;
+                justify-content: center !important;
+                left: 16px !important;
+                min-height: 42px !important;
+                min-width: 42px !important;
+                opacity: 1 !important;
+                padding: 0 !important;
+                position: fixed !important;
+                top: 14px !important;
+                visibility: visible !important;
+                width: 42px !important;
+                z-index: 2147483647 !important;
+            }
+
+            button[data-testid="stExpandSidebarButton"] svg {
                 color: #FFFFFF !important;
                 fill: none !important;
                 stroke: #FFFFFF !important;
@@ -799,24 +859,66 @@ def inject_css() -> None:
             .protocol-header {
                 display: flex;
                 justify-content: space-between;
-                align-items: flex-start;
-                gap: 20px;
-                margin: 4px 0 24px;
+                align-items: center;
+                gap: 24px;
+                margin: 6px 0 28px;
+            }
+
+            .protocol-brand {
+                align-items: center;
+                display: flex;
+                gap: 16px;
+                min-width: 0;
+            }
+
+            .protocol-logo-card {
+                align-items: center;
+                background: rgba(255,255,255,.78);
+                border: 1px solid #C8D5D1;
+                border-radius: 16px;
+                box-shadow: 0 12px 28px rgba(6,76,59,.08);
+                display: flex;
+                height: 68px;
+                justify-content: center;
+                width: 68px;
+            }
+
+            .protocol-logo {
+                height: 58px;
+                object-fit: contain;
+                width: 58px;
             }
 
             .protocol-title {
-                color: #07172D !important;
-                font-size: 2.25rem;
+                align-items: baseline;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 14px;
+                font-size: 2.28rem;
                 font-weight: 900;
                 line-height: 1.05;
                 margin: 0;
+            }
+
+            .protocol-title .title-tc6m {
+                color: var(--primary) !important;
+                font-size: 3.12rem;
+                letter-spacing: -.04em;
+                line-height: .95;
+            }
+
+            .protocol-title .title-rest {
+                color: #1F2E43 !important;
+                font-size: 2.05rem;
+                font-weight: 760;
+                letter-spacing: -.03em;
             }
 
             .protocol-subtitle {
                 color: var(--text-muted) !important;
                 font-size: .98rem;
                 font-weight: 600;
-                margin-top: 10px;
+                margin-top: 12px;
             }
 
             .protocol-actions {
@@ -2322,7 +2424,7 @@ def render_header_with_stepper_unused() -> None:
     )
 
 
-def render_app_sidebar() -> None:
+def render_app_sidebar_legacy_unused() -> None:
     section = st.session_state.get("nav_section", "avaliacao")
 
     def go_to(target: str) -> None:
@@ -2412,10 +2514,17 @@ def render_app_sidebar() -> None:
 
 def render_header() -> None:
     current_date = date.today().strftime("%d/%m/%Y")
+    header_icon_src = load_asset_image_src("tc6m_header")
+    header_icon_html = (
+        f'<div class="protocol-logo-card"><img class="protocol-logo" src="{header_icon_src}" alt="TC6M"></div>'
+        if header_icon_src
+        else '<div class="protocol-logo-card"></div>'
+    )
     st.markdown(
         f'<div class="protocol-header">'
-        f'<div><h1 class="protocol-title">TC6M — Protocolo Integrado</h1>'
-        f'<div class="protocol-subtitle">Fluxo organizado por etapas do teste de caminhada de 6 minutos</div></div>'
+        f'<div class="protocol-brand">{header_icon_html}'
+        f'<div><h1 class="protocol-title"><span class="title-tc6m">TC6M</span><span class="title-rest">Protocolo Integrado</span></h1>'
+        f'<div class="protocol-subtitle">Fluxo guiado para avaliação funcional, resposta cardiorrespiratória e geração de relatório clínico.</div></div></div>'
         f'<div class="protocol-actions"><div class="date-pill">{current_date}</div></div></div>',
         unsafe_allow_html=True,
     )
