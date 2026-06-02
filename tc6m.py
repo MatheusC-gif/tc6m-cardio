@@ -29,6 +29,8 @@ FORMULAS_DPP = [
     "Ben Saad et al. (2009) - crianças/adolescentes",
 ]
 
+COMPRIMENTOS_CORREDOR_SUPORTADOS = {20.0, 25.0, 30.0}
+
 FULL_COLUMNS = [
     "Tempo",
     "FC",
@@ -137,6 +139,7 @@ class PatientData:
     avaliador: str = ""
     diagnostico: str = ""
     comprimento_membro_inferior_m: float | None = None
+    comprimento_corredor_m: float = 30.0
     motivo_interrupcao: str = ""
     distancia_interrupcao: float = 0.0
     contraindicacao_absoluta: bool = False
@@ -197,8 +200,42 @@ def validate_patient_data(data: PatientData) -> None:
         raise ValueError("Distância percorrida não pode ser negativa.")
     if data.comprimento_membro_inferior_m is not None and data.comprimento_membro_inferior_m < 0:
         raise ValueError("Comprimento do membro inferior não pode ser negativo.")
+    if float(data.comprimento_corredor_m) not in COMPRIMENTOS_CORREDOR_SUPORTADOS:
+        raise ValueError("Selecione um protocolo de corredor válido: 30 m, 25 m ou 20 m.")
     if data.formula_principal not in FORMULAS_DPP:
         raise ValueError("Selecione uma fórmula predita válida.")
+
+
+def calcular_distancia_por_trechos(
+    comprimento_corredor_m: float,
+    trechos_completos: int,
+    metros_adicionais: float,
+) -> float:
+    """Calcula a distância real sem modificar as equações preditivas da literatura."""
+
+    comprimento = float(comprimento_corredor_m)
+    trechos = int(trechos_completos)
+    adicionais = float(metros_adicionais)
+    if comprimento not in COMPRIMENTOS_CORREDOR_SUPORTADOS:
+        raise ValueError("Selecione um protocolo de corredor válido: 30 m, 25 m ou 20 m.")
+    if trechos < 0:
+        raise ValueError("A quantidade de trechos completos não pode ser negativa.")
+    if adicionais < 0 or adicionais >= comprimento:
+        raise ValueError("Os metros adicionais devem ser menores que o comprimento do corredor.")
+    return (trechos * comprimento) + adicionais
+
+
+def descrever_protocolo_corredor(comprimento_corredor_m: float) -> str:
+    """Explica a condição metodológica do percurso usado no TC6M."""
+
+    comprimento = float(comprimento_corredor_m)
+    if comprimento == 30.0:
+        return "Protocolo padrão ATS/ERS: corredor de 30 m."
+    return (
+        f"Protocolo adaptado: corredor de {comprimento:.0f} m. "
+        "O maior número de retornos pode reduzir a distância percorrida em comparação ao protocolo padrão de 30 m. "
+        "As equações preditivas foram mantidas sem correção proporcional."
+    )
 
 
 def calcular_fc_maxima(idade: int) -> int:
@@ -759,6 +796,7 @@ def build_interpretation(
 
     interrupcao = " Houve interrupção do teste." if data.interrompeu else " Não houve interrupção registrada."
     motivo = f" Motivo: {data.motivo_interrupcao}." if data.motivo_interrupcao.strip() else ""
+    protocolo = f" {descrever_protocolo_corredor(data.comprimento_corredor_m)}"
 
     return (
         f"O paciente percorreu {data.distancia:.2f} m no TC6M. Pela fórmula selecionada "
@@ -767,7 +805,7 @@ def build_interpretation(
         f"Classificação por distância: {classificacao}. Risco associado: {risco}. "
         f"No pico registrado durante a caminhada, observou-se FC={pico.fc} bpm, SpO2={pico.spo2}% "
         f"e Borg respiratório/MMII={pico.borg_resp:.1f}/{pico.borg_mmii:.1f}, sugerindo "
-        f"{fator_limitante.lower()}.{interrupcao}{motivo}"
+        f"{fator_limitante.lower()}.{interrupcao}{motivo}{protocolo}"
     )
 
 
@@ -787,6 +825,7 @@ def build_patient_dataframe(data: PatientData) -> pd.DataFrame:
                 "Peso",
                 "Altura",
                 "Comprimento do membro inferior",
+                "Protocolo do corredor",
                 "Contraindicação absoluta",
                 "Contraindicação relativa",
                 "Observação da triagem",
@@ -802,6 +841,7 @@ def build_patient_dataframe(data: PatientData) -> pd.DataFrame:
                 f"{data.peso:.1f} kg",
                 f"{data.altura_cm:.1f} cm",
                 f"{data.comprimento_membro_inferior_m:.2f} m" if data.comprimento_membro_inferior_m else "-",
+                descrever_protocolo_corredor(data.comprimento_corredor_m),
                 "Sim" if data.contraindicacao_absoluta else "Não",
                 "Sim" if data.contraindicacao_relativa else "Não",
                 data.observacao_triagem or "-",
@@ -831,6 +871,7 @@ def build_summary_dataframe(data: PatientData, result: TestResult) -> pd.DataFra
                 "Resultado do teste",
                 "Resultado do teste",
                 "Resultado do teste",
+                "Resultado do teste",
                 "Hemodinâmica",
                 "Hemodinâmica",
                 "Hemodinâmica",
@@ -844,6 +885,7 @@ def build_summary_dataframe(data: PatientData, result: TestResult) -> pd.DataFra
                 "DPP Iwama et al.",
                 "DPP Ben Saad et al.",
                 "Distância percorrida",
+                "Protocolo do corredor",
                 "% atingido da DPP principal",
                 "Qualificador funcional",
                 "Classificação por distância",
@@ -861,6 +903,7 @@ def build_summary_dataframe(data: PatientData, result: TestResult) -> pd.DataFra
                 f"{result.dpp_iwama:.2f} m",
                 f"{result.dpp_ben_saad:.2f} m",
                 f"{data.distancia:.2f} m",
+                descrever_protocolo_corredor(data.comprimento_corredor_m),
                 f"{result.percentual_atingido:.2f} %",
                 result.qualificador_funcional,
                 f"{result.classificacao_risco} - {result.risco}",
@@ -1105,6 +1148,7 @@ def build_clinical_summary(data: PatientData, result: TestResult, timeseries_df:
     sexo_texto = "masculino" if data.sexo == "M" else "feminino"
     valid_spo2 = exercise.loc[exercise["SpO2"] > 0, "SpO2"]
     min_spo2 = int(valid_spo2.min()) if not valid_spo2.empty else pico.spo2
+    protocolo = f" {descrever_protocolo_corredor(data.comprimento_corredor_m)}"
 
     dp_texto = ""
     if result.dp_repouso and result.dp_recuperacao:
@@ -1132,7 +1176,7 @@ def build_clinical_summary(data: PatientData, result: TestResult, timeseries_df:
         f"{result.qualificador_funcional} e {result.classificacao_risco} - {result.risco.lower()}. "
         f"Durante o esforço, a menor SpO2 registrada foi {min_spo2}% e o pico de Borg respiratório/MMII "
         f"foi {pico.borg_resp:.1f}/{pico.borg_mmii:.1f}, sugerindo {result.fator_limitante.lower()}."
-        f"{dp_texto}{interrupcao}"
+        f"{dp_texto}{interrupcao}{protocolo}"
     )
 
 
@@ -2505,6 +2549,7 @@ def _pdf_cautious_summary(data: PatientData, result: TestResult, timeseries_df: 
     valid_spo2 = exercise.loc[exercise["SpO2"] > 0, "SpO2"]
     min_spo2 = int(valid_spo2.min()) if not valid_spo2.empty else pico.spo2
     interrupcao = "sem interrupção registrada" if not data.interrompeu else "com interrupção registrada"
+    protocolo = f" {descrever_protocolo_corredor(data.comprimento_corredor_m)}"
     return (
         f"Paciente {sexo_texto} de {data.idade} anos percorreu {data.distancia:.2f} m no TC6M, "
         f"atingindo {result.percentual_atingido:.2f}% do previsto pela fórmula {result.formula_principal}. "
@@ -2512,6 +2557,7 @@ def _pdf_cautious_summary(data: PatientData, result: TestResult, timeseries_df: 
         "devendo ser interpretado como rastreamento funcional de atenção clínica, sem caráter diagnóstico isolado. "
         f"Durante o esforço, a menor SpO2 registrada foi {min_spo2}% e o pico de Borg respiratório/MMII "
         f"foi {pico.borg_resp:.1f}/{pico.borg_mmii:.1f}, sugerindo {result.fator_limitante.lower()}, {interrupcao}."
+        f"{protocolo}"
     )
 
 

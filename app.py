@@ -27,6 +27,7 @@ from tc6m import (
     calcular_dpp_enright,
     calcular_dpp_iwama,
     calcular_dpp_por_formula,
+    calcular_distancia_por_trechos,
     calcular_fc_maxima,
     calcular_fc_submaxima,
     calculate_tc6m_professional,
@@ -296,6 +297,14 @@ ICON_STAR = load_asset_icon("classificacao_risco", ICON_STAR)
 ICON_ACTIVITY = load_asset_icon("classificacao_risco", ICON_ACTIVITY)
 ICON_SHIELD = load_asset_icon("classificacao_risco", ICON_SHIELD)
 
+PROTOCOLOS_CORREDOR = {
+    "Padrão ATS/ERS - corredor de 30 m": 30.0,
+    "Adaptado Clinic School - corredor de 25 m": 25.0,
+    "Adaptado especial - corredor de 20 m": 20.0,
+}
+
+EDITOR_TABLE_KEYS = ("pre_df", "during_df", "recovery_df")
+
 
 def clean_text(value: object) -> str:
     return str(value or "")
@@ -495,6 +504,37 @@ def dataframe_to_table(df: pd.DataFrame) -> str:
     return f'<table class="compact-table"><thead><tr>{header}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
 
 
+def current_editor_table(table_key: str) -> pd.DataFrame:
+    """Retorna o conteúdo mais recente sem trocar a base do editor durante a digitação."""
+
+    return st.session_state.get(f"{table_key}_pending", st.session_state[table_key])
+
+
+def clear_editor_buffers() -> None:
+    """Remove edições temporárias quando um perfil completo é recarregado."""
+
+    for table_key in EDITOR_TABLE_KEYS:
+        st.session_state.pop(f"{table_key}_pending", None)
+    for editor_key in ("pre_editor_main", "during_editor_main", "recovery_editor_main"):
+        st.session_state.pop(editor_key, None)
+
+
+def selected_corridor_length() -> float:
+    return PROTOCOLOS_CORREDOR[st.session_state.protocolo_corredor]
+
+
+def update_distance_from_course() -> None:
+    """Atualiza somente a distância real; as fórmulas preditivas permanecem intactas."""
+
+    corredor = selected_corridor_length()
+    trechos = int(st.session_state.get("trechos_completos", 0))
+    adicionais = float(st.session_state.get("metros_adicionais", 0.0))
+    if adicionais >= corredor:
+        return
+    st.session_state.distancia = calcular_distancia_por_trechos(corredor, trechos, adicionais)
+    clear_result()
+
+
 def init_state() -> None:
     defaults = {
         "nome": "",
@@ -515,6 +555,9 @@ def init_state() -> None:
         "contra_abs": False,
         "contra_rel": False,
         "observacao_triagem": "",
+        "protocolo_corredor": "Padrão ATS/ERS - corredor de 30 m",
+        "trechos_completos": 14,
+        "metros_adicionais": 0.0,
         "distancia": 420.0,
         "interrompeu_label": "Não",
         "motivo_interrupcao": "",
@@ -631,6 +674,9 @@ def fill_demo_profile(profile: str) -> None:
     st.session_state.contra_abs = False
     st.session_state.contra_rel = False
     st.session_state.observacao_triagem = "Paciente assintomático. Sem queixas ou limitações relatadas. Apto para realização do exame."
+    st.session_state.protocolo_corredor = "Padrão ATS/ERS - corredor de 30 m"
+    st.session_state.trechos_completos = int(data["distancia"] // 30)
+    st.session_state.metros_adicionais = float(data["distancia"] % 30)
     st.session_state.distancia = data["distancia"]
     st.session_state.interrompeu_label = "Não"
     st.session_state.motivo_interrupcao = ""
@@ -668,6 +714,7 @@ def fill_demo_profile(profile: str) -> None:
             },
         )
     )
+    clear_editor_buffers()
     st.session_state.patient_saved = True
     st.session_state.prediction_saved = True
     st.session_state.execution_saved = True
@@ -688,6 +735,7 @@ def build_patient() -> PatientData:
         peso=float(st.session_state.peso),
         altura_cm=float(st.session_state.altura_cm),
         comprimento_membro_inferior_m=float(st.session_state.comprimento_membro_inferior_m) or None,
+        comprimento_corredor_m=selected_corridor_length(),
         distancia=float(st.session_state.distancia),
         formula_principal=st.session_state.formula_principal,
         interrompeu=st.session_state.interrompeu_label == "Sim",
@@ -700,7 +748,11 @@ def build_patient() -> PatientData:
 
 
 def generate_result() -> None:
-    series = combine_timeseries(st.session_state.pre_df, st.session_state.during_df, st.session_state.recovery_df)
+    series = combine_timeseries(
+        current_editor_table("pre_df"),
+        current_editor_table("during_df"),
+        current_editor_table("recovery_df"),
+    )
     patient = build_patient()
     result = calculate_tc6m_professional(patient, series)
     st.session_state.paciente_tc6m = patient
@@ -3153,7 +3205,7 @@ def render_editor() -> None:
         pre_editor = prepare_editor_with_bp(st.session_state.pre_df)
         pre_resp_col = borg_resp_col(pre_editor)
         pre_mmii_col = borg_mmii_col(pre_editor)
-        st.session_state.pre_df = restore_pas_pad(
+        st.session_state.pre_df_pending = restore_pas_pad(
             st.data_editor(
                 pre_editor,
                 hide_index=True,
@@ -3174,7 +3226,7 @@ def render_editor() -> None:
         st.markdown("### Execução do teste")
         during_resp_col = borg_resp_col(st.session_state.during_df)
         during_mmii_col = borg_mmii_col(st.session_state.during_df)
-        st.session_state.during_df = st.data_editor(
+        st.session_state.during_df_pending = st.data_editor(
             st.session_state.during_df,
             hide_index=True,
             use_container_width=True,
@@ -3192,7 +3244,7 @@ def render_editor() -> None:
         recovery_editor = prepare_editor_with_bp(st.session_state.recovery_df)
         recovery_resp_col = borg_resp_col(recovery_editor)
         recovery_mmii_col = borg_mmii_col(recovery_editor)
-        st.session_state.recovery_df = restore_pas_pad(
+        st.session_state.recovery_df_pending = restore_pas_pad(
             st.data_editor(
                 recovery_editor,
                 hide_index=True,
@@ -3396,7 +3448,7 @@ def render_prediction_stage(fc_max: int, fc_submax: int, dpp_principal: float, l
         pre_editor = prepare_editor_with_bp(st.session_state.pre_df)
         pre_resp_col = borg_resp_col(pre_editor)
         pre_mmii_col = borg_mmii_col(pre_editor)
-        st.session_state.pre_df = restore_pas_pad(
+        st.session_state.pre_df_pending = restore_pas_pad(
             st.data_editor(
                 pre_editor,
                 key="pre_editor_main",
@@ -3422,7 +3474,7 @@ def render_execution_stage() -> None:
         st.markdown('<div class="soft-note">Durante a caminhada, registre apenas FC, SpO2 e Borg.</div>', unsafe_allow_html=True)
         during_resp_col = borg_resp_col(st.session_state.during_df)
         during_mmii_col = borg_mmii_col(st.session_state.during_df)
-        st.session_state.during_df = st.data_editor(
+        st.session_state.during_df_pending = st.data_editor(
             st.session_state.during_df,
             key="during_editor_main",
             hide_index=True,
@@ -3445,7 +3497,7 @@ def render_recovery_stage() -> None:
         recovery_editor = prepare_editor_with_bp(st.session_state.recovery_df)
         recovery_resp_col = borg_resp_col(recovery_editor)
         recovery_mmii_col = borg_mmii_col(recovery_editor)
-        st.session_state.recovery_df = restore_pas_pad(
+        st.session_state.recovery_df_pending = restore_pas_pad(
             st.data_editor(
                 recovery_editor,
                 key="recovery_editor_main",
@@ -3468,18 +3520,55 @@ def render_recovery_stage() -> None:
 def render_final_test_inputs() -> None:
     with st.container(border=True):
         st.markdown("#### Dados finais do teste")
+        st.selectbox(
+            "Protocolo do corredor",
+            list(PROTOCOLOS_CORREDOR),
+            key="protocolo_corredor",
+            on_change=update_distance_from_course,
+        )
+        corredor = selected_corridor_length()
+        if corredor < 30:
+            st.warning(
+                f"Protocolo adaptado: corredor de {corredor:.0f} m. O maior número de retornos pode reduzir a "
+                "distância percorrida em comparação ao protocolo padrão de 30 m. As fórmulas preditivas permanecem inalteradas."
+            )
         r1, r2, r3 = st.columns(3)
         with r1:
-            st.number_input("Distância percorrida ao final do TC6M (m)", min_value=0.0, max_value=2000.0, step=1.0, key="distancia", on_change=clear_result)
+            st.number_input(
+                "Trechos completos de ponta a ponta",
+                min_value=0,
+                max_value=200,
+                step=1,
+                key="trechos_completos",
+                on_change=update_distance_from_course,
+            )
         with r2:
-            st.radio("O paciente interrompeu o teste?", ["Não", "Sim"], horizontal=True, key="interrompeu_label", on_change=clear_result)
+            st.number_input(
+                "Metros adicionais do último trecho",
+                min_value=0.0,
+                max_value=30.0,
+                step=0.5,
+                key="metros_adicionais",
+                on_change=update_distance_from_course,
+            )
         with r3:
+            st.metric("Distância real calculada", f"{st.session_state.distancia:.1f} m")
+        if float(st.session_state.metros_adicionais) >= corredor:
+            st.error(f"Os metros adicionais devem ser menores que {corredor:.0f} m.")
+
+        r4, r5 = st.columns(2)
+        with r4:
+            st.radio("O paciente interrompeu o teste?", ["Não", "Sim"], horizontal=True, key="interrompeu_label", on_change=clear_result)
+        with r5:
             if st.session_state.interrompeu_label == "Sim":
                 st.number_input("Distância no momento da interrupção (m)", min_value=0.0, max_value=2000.0, step=1.0, key="distancia_interrupcao", on_change=clear_result)
         if st.session_state.interrompeu_label == "Sim":
             st.text_area("Motivo da interrupção", key="motivo_interrupcao", on_change=clear_result)
         if st.button("Gerar resumo final do TC6M", type="primary", use_container_width=True):
             try:
+                update_distance_from_course()
+                if float(st.session_state.metros_adicionais) >= corredor:
+                    raise ValueError(f"Os metros adicionais devem ser menores que {corredor:.0f} m.")
                 generate_result()
                 st.rerun()
             except ValueError as error:
@@ -3513,11 +3602,11 @@ current_section = st.session_state.get("nav_section", "avaliacao")
 
 execution_body = (
     '<div class="soft-note">Durante a caminhada, registre apenas FC, SpO2 e Borg.</div>'
-    + dataframe_to_table(display_vitals_table(st.session_state.during_df, include_full=False))
+    + dataframe_to_table(display_vitals_table(current_editor_table("during_df"), include_full=False))
 )
 recovery_body = (
     '<div class="soft-note">Após o teste, registre sinais completos em 1, 3 e 6 minutos.</div>'
-    + dataframe_to_table(display_vitals_table(st.session_state.recovery_df, include_full=True))
+    + dataframe_to_table(display_vitals_table(current_editor_table("recovery_df"), include_full=True))
 )
 
 if current_section == "execucao":

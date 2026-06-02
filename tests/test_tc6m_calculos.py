@@ -20,6 +20,7 @@ from tc6m import (
     build_integrated_recovery_analysis,
     build_pdf_bytes,
     calcular_duplo_produto,
+    calcular_distancia_por_trechos,
     calcular_dpp_enright,
     calcular_fc_maxima,
     calcular_fc_submaxima,
@@ -73,6 +74,24 @@ def sample_patient(**overrides):
 
 
 class TC6MCalculosTest(unittest.TestCase):
+    def test_protocolos_de_corredor_calculam_distancia_real_sem_corrigir_predicao(self):
+        self.assertEqual(calcular_distancia_por_trechos(30, 14, 18), 438.0)
+        self.assertEqual(calcular_distancia_por_trechos(25, 17, 13), 438.0)
+        self.assertEqual(calcular_distancia_por_trechos(20, 21, 18), 438.0)
+
+        with self.assertRaises(ValueError):
+            calcular_distancia_por_trechos(25, 17, 25)
+        with self.assertRaises(ValueError):
+            calcular_distancia_por_trechos(12, 30, 0)
+
+    def test_corredor_adaptado_nao_modifica_equacao_predita(self):
+        series = sample_timeseries()
+        padrao = calculate_tc6m_professional(sample_patient(comprimento_corredor_m=30), series)
+        adaptado = calculate_tc6m_professional(sample_patient(comprimento_corredor_m=25), series)
+
+        self.assertEqual(padrao.dpp_principal, adaptado.dpp_principal)
+        self.assertEqual(padrao.percentual_atingido, adaptado.percentual_atingido)
+
     def test_predicao_percentual_fc_e_qualificador(self):
         dpp, lin = calcular_dpp_enright("M", 62, 74.0, 171.0)
 
