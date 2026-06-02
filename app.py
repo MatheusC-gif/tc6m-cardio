@@ -27,7 +27,6 @@ from tc6m import (
     calcular_dpp_enright,
     calcular_dpp_iwama,
     calcular_dpp_por_formula,
-    calcular_distancia_por_trechos,
     calcular_fc_maxima,
     calcular_fc_submaxima,
     calculate_tc6m_professional,
@@ -35,6 +34,26 @@ from tc6m import (
     format_analysis_value,
     normalize_timeseries,
 )
+
+try:
+    from tc6m import calcular_distancia_por_trechos
+except ImportError:
+    # Mantém o app disponível durante uma janela de cache entre deploys do Streamlit Cloud.
+    def calcular_distancia_por_trechos(
+        comprimento_corredor_m: float,
+        trechos_completos: int,
+        metros_adicionais: float,
+    ) -> float:
+        comprimento = float(comprimento_corredor_m)
+        trechos = int(trechos_completos)
+        adicionais = float(metros_adicionais)
+        if comprimento not in {20.0, 25.0, 30.0}:
+            raise ValueError("Selecione um protocolo de corredor válido: 30 m, 25 m ou 20 m.")
+        if trechos < 0:
+            raise ValueError("A quantidade de trechos completos não pode ser negativa.")
+        if adicionais < 0 or adicionais >= comprimento:
+            raise ValueError("Os metros adicionais devem ser menores que o comprimento do corredor.")
+        return (trechos * comprimento) + adicionais
 
 
 st.set_page_config(
