@@ -47,8 +47,8 @@ except ImportError:
         comprimento = float(comprimento_corredor_m)
         trechos = int(trechos_completos)
         adicionais = float(metros_adicionais)
-        if comprimento not in {20.0, 25.0, 30.0}:
-            raise ValueError("Selecione um protocolo de corredor válido: 30 m, 25 m ou 20 m.")
+        if comprimento not in {25.0, 30.0}:
+            raise ValueError("Selecione um protocolo de corredor válido: 30 m ou 25 m.")
         if trechos < 0:
             raise ValueError("A quantidade de trechos completos não pode ser negativa.")
         if adicionais < 0 or adicionais >= comprimento:
@@ -319,7 +319,6 @@ ICON_SHIELD = load_asset_icon("classificacao_risco", ICON_SHIELD)
 PROTOCOLOS_CORREDOR = {
     "Padrão ATS/ERS - corredor de 30 m": 30.0,
     "Adaptado Clínica Escola": 25.0,
-    "Adaptado especial - corredor de 20 m": 20.0,
 }
 
 EDITOR_TABLE_KEYS = ("pre_df", "during_df", "recovery_df")

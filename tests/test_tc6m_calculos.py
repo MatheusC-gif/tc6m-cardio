@@ -77,12 +77,13 @@ class TC6MCalculosTest(unittest.TestCase):
     def test_protocolos_de_corredor_calculam_distancia_real_sem_corrigir_predicao(self):
         self.assertEqual(calcular_distancia_por_trechos(30, 14, 18), 438.0)
         self.assertEqual(calcular_distancia_por_trechos(25, 17, 13), 438.0)
-        self.assertEqual(calcular_distancia_por_trechos(20, 21, 18), 438.0)
 
         with self.assertRaises(ValueError):
             calcular_distancia_por_trechos(25, 17, 25)
         with self.assertRaises(ValueError):
             calcular_distancia_por_trechos(12, 30, 0)
+        with self.assertRaises(ValueError):
+            calcular_distancia_por_trechos(20, 21, 18)
 
     def test_corredor_adaptado_nao_modifica_equacao_predita(self):
         series = sample_timeseries()

@@ -29,7 +29,7 @@ FORMULAS_DPP = [
     "Ben Saad et al. (2009) - crianças/adolescentes",
 ]
 
-COMPRIMENTOS_CORREDOR_SUPORTADOS = {20.0, 25.0, 30.0}
+COMPRIMENTOS_CORREDOR_SUPORTADOS = {25.0, 30.0}
 
 FULL_COLUMNS = [
     "Tempo",
@@ -201,7 +201,7 @@ def validate_patient_data(data: PatientData) -> None:
     if data.comprimento_membro_inferior_m is not None and data.comprimento_membro_inferior_m < 0:
         raise ValueError("Comprimento do membro inferior não pode ser negativo.")
     if float(data.comprimento_corredor_m) not in COMPRIMENTOS_CORREDOR_SUPORTADOS:
-        raise ValueError("Selecione um protocolo de corredor válido: 30 m, 25 m ou 20 m.")
+        raise ValueError("Selecione um protocolo de corredor válido: 30 m ou 25 m.")
     if data.formula_principal not in FORMULAS_DPP:
         raise ValueError("Selecione uma fórmula predita válida.")
 
@@ -217,7 +217,7 @@ def calcular_distancia_por_trechos(
     trechos = int(trechos_completos)
     adicionais = float(metros_adicionais)
     if comprimento not in COMPRIMENTOS_CORREDOR_SUPORTADOS:
-        raise ValueError("Selecione um protocolo de corredor válido: 30 m, 25 m ou 20 m.")
+        raise ValueError("Selecione um protocolo de corredor válido: 30 m ou 25 m.")
     if trechos < 0:
         raise ValueError("A quantidade de trechos completos não pode ser negativa.")
     if adicionais < 0 or adicionais >= comprimento:
