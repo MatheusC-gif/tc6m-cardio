@@ -318,7 +318,7 @@ ICON_SHIELD = load_asset_icon("classificacao_risco", ICON_SHIELD)
 
 PROTOCOLOS_CORREDOR = {
     "Padrão ATS/ERS - corredor de 30 m": 30.0,
-    "Adaptado Clinic School - corredor de 25 m": 25.0,
+    "Adaptado Clínica Escola": 25.0,
     "Adaptado especial - corredor de 20 m": 20.0,
 }
 
