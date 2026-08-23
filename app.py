@@ -2556,6 +2556,7 @@ def render_app_sidebar() -> None:
         section_labels = {
             "Avaliação": "avaliacao",
             "Execução": "execucao",
+            "Calculadoras": "calculadoras",
             "Resultados": "resultados",
             "Gráficos": "graficos",
             "Relatório": "relatorio",
@@ -3535,6 +3536,125 @@ def render_recovery_stage() -> None:
         )
 
 
+def render_calculators_stage() -> None:
+    st.markdown(stage_header("C", ICON_CALCULATOR, "Calculadoras clínicas isoladas"), unsafe_allow_html=True)
+    st.markdown(
+        '<div class="soft-note">Ferramentas de consulta: os cálculos abaixo não alteram a avaliação em andamento.</div>',
+        unsafe_allow_html=True,
+    )
+
+    predicted_tab, karvonen_tab = st.tabs(["Cálculo previsto e FC prevista", "Método de Karvonen"])
+
+    with predicted_tab:
+        st.markdown("#### Distância predita do TC6M e FC máxima prevista")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            calc_sexo_label = st.selectbox("Sexo biológico", ["Masculino", "Feminino"], key="calc_pred_sexo")
+        with c2:
+            calc_idade = st.number_input("Idade", min_value=1, max_value=120, value=60, step=1, key="calc_pred_idade")
+        with c3:
+            calc_peso = st.number_input("Peso (kg)", min_value=1.0, max_value=250.0, value=70.0, step=0.5, key="calc_pred_peso")
+        with c4:
+            calc_altura = st.number_input("Altura (cm)", min_value=50.0, max_value=230.0, value=170.0, step=0.5, key="calc_pred_altura")
+
+        formula = st.selectbox("Fórmula de referência", FORMULAS_DPP, key="calc_pred_formula")
+        calc_sexo = "M" if calc_sexo_label == "Masculino" else "F"
+        calc_dpp, calc_lin = calcular_dpp_por_formula(formula, calc_sexo, int(calc_idade), float(calc_peso), float(calc_altura))
+        calc_enright, calc_lin_enright = calcular_dpp_enright(calc_sexo, int(calc_idade), float(calc_peso), float(calc_altura))
+        calc_iwama = calcular_dpp_iwama(calc_sexo, int(calc_idade))
+        calc_ben_saad = calcular_dpp_ben_saad(int(calc_idade), float(calc_peso), float(calc_altura))
+        calc_fc_max = calcular_fc_maxima(int(calc_idade))
+        calc_fc_sub = calcular_fc_submaxima(int(calc_idade))
+
+        st.markdown(
+            metric_grid(
+                [
+                    ("DPP selecionada", f"{br_number(calc_dpp)} m", False),
+                    ("LIN selecionado", f"{br_number(calc_lin)} m" if calc_lin is not None else "Não definido", False),
+                    ("FCmáx prevista", f"{calc_fc_max} bpm", False),
+                    ("FC submáxima (85%)", f"{calc_fc_sub} bpm", False),
+                    ("Fórmula", clean_text(formula).split(" - ")[0], True),
+                ]
+            ),
+            unsafe_allow_html=True,
+        )
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {"Fórmula": "Enright/Sherrill", "Distância predita": f"{br_number(calc_enright)} m", "LIN": f"{br_number(calc_lin_enright)} m"},
+                    {"Fórmula": "Iwama et al.", "Distância predita": f"{br_number(calc_iwama)} m", "LIN": "Não definido"},
+                    {"Fórmula": "Ben Saad et al.", "Distância predita": f"{br_number(calc_ben_saad)} m", "LIN": "Não definido"},
+                ]
+            ),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+    with karvonen_tab:
+        st.markdown("#### Frequência cardíaca alvo pelo método de Karvonen")
+        k1, k2, k3 = st.columns(3)
+        with k1:
+            karvonen_idade = st.number_input("Idade", min_value=1, max_value=120, value=60, step=1, key="karvonen_idade")
+        with k2:
+            fc_max_prevista = calcular_fc_maxima(int(karvonen_idade))
+            st.metric("FCmáx prevista por idade", f"{fc_max_prevista} bpm")
+        with k3:
+            fonte_fc_max = st.radio(
+                "Fonte da FCmáx para a equação",
+                ["Prevista por idade", "Informada/obtida no teste"],
+                horizontal=True,
+                key="karvonen_fonte_fcmax",
+            )
+
+        k4, k5, k6, k7 = st.columns(4)
+        with k4:
+            fc_max_obtida = st.number_input(
+                "FCmáx informada ou obtida (bpm)",
+                min_value=30,
+                max_value=240,
+                value=fc_max_prevista,
+                step=1,
+                key="karvonen_fc_max_obtida",
+                help="Use este campo quando quiser aplicar a FC máxima observada no teste ou definida clinicamente.",
+            )
+        with k5:
+            fc_repouso = st.number_input("FC de repouso (bpm)", min_value=30, max_value=140, value=70, step=1, key="karvonen_fc_repouso")
+        with k6:
+            intensidade_min = st.number_input("Intensidade inicial (%)", min_value=1, max_value=100, value=50, step=1, key="karvonen_int_min")
+        with k7:
+            intensidade_max = st.number_input("Intensidade final (%)", min_value=1, max_value=100, value=70, step=1, key="karvonen_int_max")
+
+        if intensidade_min > intensidade_max:
+            st.error("A intensidade inicial deve ser menor ou igual à intensidade final.")
+            return
+
+        fc_max_karvonen = fc_max_prevista if fonte_fc_max == "Prevista por idade" else int(fc_max_obtida)
+        if fc_max_karvonen <= int(fc_repouso):
+            st.error("A FCmáx usada na equação precisa ser maior que a FC de repouso.")
+            return
+
+        reserva_fc = fc_max_karvonen - int(fc_repouso)
+        fc_alvo_min = round((reserva_fc * (intensidade_min / 100)) + int(fc_repouso))
+        fc_alvo_max = round((reserva_fc * (intensidade_max / 100)) + int(fc_repouso))
+
+        st.markdown(
+            metric_grid(
+                [
+                    ("FCmáx usada", f"{fc_max_karvonen} bpm", False),
+                    ("Reserva de FC", f"{reserva_fc} bpm", False),
+                    ("FC alvo inicial", f"{fc_alvo_min} bpm", False),
+                    ("FC alvo final", f"{fc_alvo_max} bpm", False),
+                    ("Faixa prescrita", f"{intensidade_min}% a {intensidade_max}%", True),
+                ]
+            ),
+            unsafe_allow_html=True,
+        )
+        st.info(
+            "Fórmula: FC alvo = ((FCmáx usada - FC repouso) × intensidade) + FC repouso. "
+            "A FCmáx pode ser prevista por idade ou informada livremente a partir do teste."
+        )
+
+
 def render_final_test_inputs() -> None:
     with st.container(border=True):
         st.markdown("#### Dados finais do teste")
@@ -3626,6 +3746,10 @@ recovery_body = (
     '<div class="soft-note">Após o teste, registre sinais completos em 1, 3 e 6 minutos.</div>'
     + dataframe_to_table(display_vitals_table(current_editor_table("recovery_df"), include_full=True))
 )
+
+if current_section == "calculadoras":
+    render_calculators_stage()
+    st.stop()
 
 if current_section == "execucao":
     if not st.session_state.get("patient_saved", False):
